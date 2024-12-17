@@ -1,0 +1,428 @@
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+
+#define MAX 640
+struct node
+{
+	int address,size;
+	struct node *next;
+};
+typedef struct node RECT;
+
+/*-----函数定义-----*/
+RECT *assignment(RECT *head,int application);  //分区分配
+RECT *assignment_low2high(RECT *head,int application); //从低地址开始分配
+void firstfit(RECT *head,RECT *heada,RECT *back1);// 首次适应算法
+void bestfit_sort(RECT *head); // 最佳适应算法排序
+void worstfit_sort(RECT *head); // 最坏适应算法排序
+int backcheck(RECT *head,RECT *back1);// 合法性检查
+void heada_sort(RECT *heada); // 最坏适应算法排序
+void print(RECT *head); // 打印
+
+/*-----定义变量-----*/
+RECT *head,*heada,*back,*assign1,*p;
+int application1,maxblocknum;
+char way;  // 用于定义分配方式：首次适应、最佳适应、最坏适应
+
+int main()
+{
+	char choose;
+	int check;
+	head=(RECT *)malloc(sizeof(RECT));  // 建立空闲分区表的初始状态
+	p=(RECT *)malloc(sizeof(RECT));
+	head->size=MAX;
+	head->address=0;
+	head->next=p;
+	maxblocknum=1;
+	p->size=MAX;
+	p->address=0;
+	p->next=NULL;
+	
+	printf("初始状态：\n");
+	print(head);
+	printf("\n\n");
+	
+	printf("/*---------请选择内存分配方式way---------*/\n");
+	printf(" f : firstfit\n");
+	printf(" b : bestfit\n");
+	printf(" w : worstfit\n\n");
+	printf("please input way:");
+	scanf("%c",&way);   
+	heada=(RECT *)malloc(sizeof(RECT)); // 建立已分配分区表的初始状态
+	heada->size=0;
+	heada->address=0;
+	heada->next=NULL;
+	do
+	{
+		printf("Enter the allocate or reclaim(a/r),or press other key to exit.\n");
+		scanf(" %c",&choose); // 选择分配or回收
+		if(choose=='a') // a为分配
+		{
+			printf("Input application:\n"); 
+			scanf("%d",&application1); // 输入申请空间的大小
+			//assign1=assignment(head,application1); // 调用分配函数以分配内存
+			if(way=='b')   // 最佳适应算法分配
+				bestfit_sort(head);
+			if(way=='w')	// 最坏适应算法分配
+				worstfit_sort(head);		
+			assign1=assignment_low2high(head,application1); // 调用分配函数以分配内存
+			if(assign1->address==-1)
+				printf("Too large application!Allocation fails!\n\n");
+			else
+				printf("Allocation Success!ADDRESS=%5d\n",assign1->address);
+				
+			// 排好序后再输出
+			heada_sort(head);
+			printf("\n***********Unallocated Table***********\n");
+			print(head);
+			heada_sort(heada);
+			printf("\n*********** Allocated Table ************\n");
+			print(heada);
+		}	
+		else if(choose=='r') // r为回收
+		{
+			back=(RECT *)malloc(sizeof(RECT));
+			printf("Input address and size:\n");
+			scanf("%d%d",&back->address,&back->size);
+			check=backcheck(head,back);
+			if(check==1)
+			{
+				firstfit(head,heada,back);  // 回收
+				
+				// 排好序后再输出
+				heada_sort(head);
+				printf("\n***********Unallocated Table***********\n");
+				print(head);
+				heada_sort(heada);
+				printf("\n*********** Allocated Table ************\n");
+				print(heada);										
+			}
+		}
+		else
+			break;
+	}while(1);
+}
+
+//排序函数：对链表按照size从小到大排序
+void bestfit_sort(RECT *head)
+{
+    RECT *i, *j;
+    int temp_address, temp_size;
+
+    // 外层循环：遍历链表的每个节点
+    for (i = head->next; i != NULL; i = i->next) 
+	{
+        // 内层循环：依次将当前节点与后面的节点进行比较
+        for (j = i->next; j != NULL; j = j->next) 
+		{
+            if (i->size > j->size) 
+			{  // 如果节点i的地址大于节点j的地址，交换它们
+                // 交换地址
+                temp_address = i->address;
+                i->address = j->address;
+                j->address = temp_address;
+                
+                // 交换大小
+                temp_size = i->size;
+                i->size = j->size;
+                j->size = temp_size;
+            }
+        }
+    }
+}	
+
+//排序函数：对链表按照size从大到小排序
+void worstfit_sort(RECT *head)
+{
+    RECT *i, *j;
+    int temp_address, temp_size;
+
+    // 外层循环：遍历链表的每个节点
+    for (i = head->next; i != NULL; i = i->next) 
+	{
+        // 内层循环：依次将当前节点与后面的节点进行比较
+        for (j = i->next; j != NULL; j = j->next) 
+		{
+            if (i->size < j->size) 
+			{  // 如果节点i的地址大于节点j的地址，交换它们
+                // 交换地址
+                temp_address = i->address;
+                i->address = j->address;
+                j->address = temp_address;
+                
+                // 交换大小
+                temp_size = i->size;
+                i->size = j->size;
+                j->size = temp_size;
+            }
+        }
+    }	
+}
+
+// 对heada链表按address从低到高排序
+void heada_sort(RECT *heada)
+{
+    RECT *i, *j;
+    int temp_address, temp_size;
+
+    // 外层循环：遍历链表的每个节点
+    for (i = heada->next; i != NULL; i = i->next) 
+	{
+        // 内层循环：依次将当前节点与后面的节点进行比较
+        for (j = i->next; j != NULL; j = j->next) 
+		{
+            if (i->address > j->address) 
+			{  // 如果节点i的地址大于节点j的地址，交换它们
+                // 交换地址
+                temp_address = i->address;
+                i->address = j->address;
+                j->address = temp_address;
+                
+                // 交换大小
+                temp_size = i->size;
+                i->size = j->size;
+                j->size = temp_size;
+            }
+        }
+    }	
+}
+
+// 内存分配函数：从低地址开始分配
+RECT *assignment_low2high(RECT *head, int application)
+{
+	RECT *after,*before,*assign;
+	assign=(RECT *)malloc(sizeof(RECT));
+	assign->size=application; // 申请分配空间的大小
+	assign->next=NULL;
+	if(application>head->size || application<0)
+		assign->address=-1;
+	else
+	{
+		before=head;
+		after=head->next;
+		while(after->size < application) // 遍历链表，查找合适的节点
+		{
+			before=before->next; // 前驱结点
+			after=after->next;
+		}
+		if(after->size==application) // 若节点大小等于申请大小，则完全分配
+		{
+			if(after->size==head->size)
+				maxblocknum--;
+			before->next=after->next;
+			assign->address=after->address;
+			free(after);		
+		}
+		else
+		{
+			if(after->size==head->size)
+				maxblocknum--;
+			after->size=after->size-application;// 大于申请空间时，截取相应大小并分配
+			assign->address=after->address;
+			after->address=after->address+assign->size;
+		}
+		if(maxblocknum==0) // 修改最大数和头节点,还剩多少空间存头节点里
+		{
+			before=head;
+			head->size=0;
+			maxblocknum=1;
+			while(before!=NULL)
+			{
+				if(before->size > head->size)
+				{
+					head->size=before->size;
+					maxblocknum=1;					
+				}
+				else if(before->size==head->size)
+					maxblocknum++;  // 和头结点一样大的块有多少，即最大块的数量
+				before=before->next;
+			}
+		}
+	}
+	assign1=assign;
+	// 修改已分配分区表，添加节点
+	after=heada;
+	while(after->next!=NULL) // 找到尾节点，挂到后面
+		after=after->next;
+	after->next=assign;
+	heada->size++; // 数量+1
+	return assign1;	
+}
+
+// 内存分配函数：从高地址开始分配
+RECT *assignment(RECT *head,int application)
+{
+	RECT *after,*before,*assign;
+	assign=(RECT *)malloc(sizeof(RECT));
+	assign->size=application; // 申请分配空间的大小
+	assign->next=NULL;
+	if(application>head->size || application<0)
+		assign->address=-1;
+	else
+	{
+		before=head;
+		after=head->next;
+		while(after->size < application) // 遍历链表，查找合适的节点
+		{
+			before=before->next; // 前驱结点
+			after=after->next;
+		}
+		if(after->size==application) // 若节点大小等于申请大小，则完全分配
+		{
+			if(after->size==head->size)
+				maxblocknum--;
+			before->next=after->next;
+			assign->address=after->address;
+			free(after);		
+		}
+		else
+		{
+			if(after->size==head->size)
+				maxblocknum--;
+			after->size=after->size-application;// 大于申请空间时，截取相应大小并分配
+			assign->address=after->address+after->size;
+		}
+		if(maxblocknum==0) // 修改最大数和头节点
+		{
+			before=head;
+			head->size=0;
+			maxblocknum=1;
+			while(before!=NULL)
+			{
+				if(before->size > head->size)
+				{
+					head->size=before->size;
+					maxblocknum=1;					
+				}
+				else if(before->size==head->size)
+					maxblocknum++;  // 和头结点一样大的块有多少，即最大块的数量
+				before=before->next;
+			}
+		}
+	}
+	assign1=assign;
+	// 修改已分配分区表，添加节点
+	after=heada;
+	while(after->next!=NULL) // 找到尾节点，挂到后面
+		after=after->next;
+	after->next=assign;
+	heada->size++; // 数量+1
+	return assign1;	
+}
+
+// 首次适应算法
+void firstfit(RECT *head,RECT *heada,RECT *back1)
+{
+	RECT *before,*after,*back2;
+	int insert,del;
+	back2=(RECT *)malloc(sizeof(RECT));
+	back2->address=back1->address;
+	back2->size=back1->size;
+	back2->next=back1->next;
+	before=head;
+	after=head->next;
+	insert=0;
+	while(!insert)  // 将回收区插入空闲分区表
+	{
+		if((after==NULL)||((back1->address<=after->address)&&(back1->address>=before->address)))
+		{
+			before->next=back1;  
+			back1->next=after;
+			insert=1;
+		}
+		else
+		{
+			before=before->next;
+			after=after->next;
+		}
+	}
+	if(back1->address==before->address+before->size)	//与上一内存块合并
+	{
+		before->size=before->size+back1->size;
+		before->next=back1->next;
+		free(back1);
+		back1=before;
+	}
+	if((after!=NULL)&&(after->address==back1->address+back1->size)) // 与下一内存块合并
+	{
+		back1->size=back1->size+after->size;
+		back1->next=after->next;
+		free(after);
+	}
+	if(head->size<back1->size) //修改最大块值和最大块个数
+	{
+		head->size=back1->size;
+		maxblocknum=1;
+	}
+	else
+		if(head->size==back1->size)
+			maxblocknum++;
+	// 修改已分配分区表，删除相应节点
+	before=heada;
+	after=heada->next;
+	del=0;
+	while(!del && after!=NULL) //将回收区从已分配分区表中删除
+	{
+		if((after->address==back2->address)&&(after->size==back2->size))
+		{
+			before->next=after->next;
+			free(after);
+			del=1;
+		}
+		else
+		{
+			before=before->next;
+			after=after->next;
+		}
+	}
+	heada->size--;
+}
+
+// 打印输出链表
+void print(RECT *output) // 打印
+{
+	RECT *before;
+	int index;
+	before=output->next;
+	index=0;
+	if(output->next==NULL)
+		printf("NO part for print!\n");
+	else
+	{
+		printf("index****address****end*****size****\n");
+		while(before!=NULL)
+		{
+			printf("------------------------------------\n");
+			printf("%-9d %- 9d%- 9d%- 9d\n",index,before->address,
+					before->address+before->size-1,before->size);
+			printf("------------------------------------\n");
+			index++;
+			before=before->next;
+		}
+	}
+}
+
+// 检查回收块的合法性，back1为要回收节点的地址
+int backcheck(RECT *head,RECT *back1)  // 合法性检查
+{
+	RECT *before;
+	int check=1;
+	if(back1->address<0 || back1->size<0)
+		check=0; //地址和大小不能为负值
+	before=head->next;
+	while((before!=NULL)&&check) // 地址不能和空闲分区表中的节点重叠
+	{
+		if(((back1->address<before->address)&&(back1->address+back1->size>before->address))
+		||((back1->address>=before->address)&&(back1->address<before->address+before->size)))
+			check=0;
+		else
+			before=before->next;		
+	}
+
+	if(check==0)
+		printf("Error input!\n");
+	return check;		
+}
+	
+				
